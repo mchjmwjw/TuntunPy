@@ -1,5 +1,5 @@
 #coding=utf-8
-from flask import Flask, render_template
+from flask import Flask, render_template, session, redirect, url_for, flash
 from flask import request
 from flask import make_response
 from flask_script import Manager
@@ -9,9 +9,19 @@ from datetime import datetime
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField
 from wtforms.validators import Required
+from flask_sqlalchemy import SQLAlchemy
+from os import path
+
+basedir = path.abspath(path.dirname(__file__))
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'hard to guess what dog'
+app.config['SQLALCHEMY_DATABASE_URI'] =\
+    'sqlite:////' + path.join(basedir, 'dbs/tuntunpy.db')
+app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True  # 每次请求结束后自动提交数据库中的变动
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+db = SQLAlchemy(app)
+
 manager = Manager(app)
 bootstrap = Bootstrap(app)
 moment = Moment(app)
@@ -33,18 +43,28 @@ def cook():
     response.set_cookie('answer', '42')
     return response
 
-@app.route('/testpost', methods=['GET', 'POST'])
+@app.route('/testpost2', methods=['GET', 'POST'])
 def testpost():
-    name = None
     form = NameForm()
     if form.validate_on_submit():
-        name = form.name.data
+        user = User.query.filter_by(username=form.name.data).first()
+        if user is None:
+            user = User(username = form.name.data)
+            db.session.add(user)
+            session['known'] = False
+        else:
+            session['known'] = True
+        old_name = session.get('name')
+        if old_name is not None and old_name != form.name.data:
+            flash(u'你输入的名称已经改变！')
+        session['name'] = form.name.data
         form.name.data = ''
-    return render_template('TestPost.html', form=form, name=name)
+        return redirect(url_for('testpost'))
+    return render_template('TestPost.html', form=form, name=session.get('name'), known=session.get('known', False))
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return render_template('404.html'), 404
+    return render_template('404.html'), 4
 
 @app.errorhandler(500)
 def internal_server_error(e):
@@ -53,6 +73,24 @@ def internal_server_error(e):
 class NameForm(FlaskForm):
     name = StringField(u'你的名字是什么?', validators=[Required()])
     submit = SubmitField('Submit')
+
+class Role(db.Model):
+    __tablename__ = 'roles'
+    id = db.Column(db.Integer, primary_key = True)
+    name = db.Column(db.String(64), unique = True)
+    users = db.relationship('User', backref='role') # backref的属性值将添加到对应关系表中
+
+    def __repr__(self):
+        return  '<Role %r>' % self.name
+
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key = True)
+    username = db.Column(db.String(64), unique=True, index = True)
+    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
+
+    def __repr__(self):
+        return  '<User %r>' % self.username
 
 if __name__ == '__main__':
     # app.run(debug=True)

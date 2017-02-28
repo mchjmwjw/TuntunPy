@@ -4,9 +4,13 @@
 {% block title %}TestPost{% endblock %}
 
 {% block page_content %}
-<div class="page-header">
-    <h1>Hello, {% if name %}{{ name }}
-    {% else %}Stranger{% endif %}</h1>
-</div>
-{{ wtf.quick_form(form) }}
+    <div class="page-header">
+        <h1>Hello, {% if name %}{{ name }}{% else %}Stranger{% endif %}</h1>
+        {% if not known %}
+            <h1>初次相见,很高兴遇见你!</h1>
+        {% else %}
+            <h1>很高兴，我们再会了!</h1>
+        {% endif %}
+    </div>
+    {{ wtf.quick_form(form) }}
 {% endblock %}
