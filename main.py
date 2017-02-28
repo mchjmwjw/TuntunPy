@@ -6,8 +6,12 @@ from flask_script import Manager
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from datetime import datetime
+from flask_wtf import FlaskForm
+from wtforms import StringField, SubmitField
+from wtforms.validators import Required
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'hard to guess what dog'
 manager = Manager(app)
 bootstrap = Bootstrap(app)
 moment = Moment(app)
@@ -29,6 +33,15 @@ def cook():
     response.set_cookie('answer', '42')
     return response
 
+@app.route('/testpost', methods=['GET', 'POST'])
+def testpost():
+    name = None
+    form = NameForm()
+    if form.validate_on_submit():
+        name = form.name.data
+        form.name.data = ''
+    return render_template('TestPost.html', form=form, name=name)
+
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404
@@ -37,6 +50,9 @@ def page_not_found(e):
 def internal_server_error(e):
     return render_template('500.html'), 500
 
+class NameForm(FlaskForm):
+    name = StringField(u'你的名字是什么?', validators=[Required()])
+    submit = SubmitField('Submit')
 
 if __name__ == '__main__':
     # app.run(debug=True)
