@@ -139,5 +139,5 @@ def send_async_email(app, msg):
         mail.send(msg)
 
 if __name__ == '__main__':
-    # app.run(debug=True)
+    # app2.run(debug=True)
     manager.run()
