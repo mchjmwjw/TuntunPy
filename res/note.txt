@@ -1,0 +1,19 @@
+SQLAlchemy 对应各数据库的URL
+http://docs.sqlalchemy.org/en/rel_1_1/core/engines.html?highlight=url#sqlalchemy.engine.url.URL
+
+在维护数据库迁移之前，要使用 init 子命令创建迁移仓库：
+(venv) $ python main.py db init
+
+migrate 子命令用来自动创建迁移脚本：
+(venv) $ python main.py db migrate -m "initial migration"
+
+更新数据库
+(venv) $ python main.py db upgrade
+
+flask-mail:
+    mac & linux:
+        (venv) $ export MAIL_USERNAME=<Gmail username>
+        (venv) $ export MAIL_PASSWORD=<Gmail password>
+    window:
+        (venv) $ set MAIL_USERNAME=<Gmail username>
+        (venv) $ set MAIL_PASSWORD=<Gmail password>

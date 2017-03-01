@@ -1,8 +1,10 @@
 #coding=utf-8
+
 from flask import Flask, render_template, session, redirect, url_for, flash
 from flask import request
 from flask import make_response
 from flask_script import Manager
+from flask_script import Shell
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from datetime import datetime
@@ -11,20 +13,42 @@ from wtforms import StringField, SubmitField
 from wtforms.validators import Required
 from flask_sqlalchemy import SQLAlchemy
 from os import path
+import os
+import platform
+from flask_migrate import Migrate, MigrateCommand
+from flask_mail import Mail
+from flask_mail import Message
+from threading import Thread
 
 basedir = path.abspath(path.dirname(__file__))
+opesys = platform.system()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'hard to guess what dog'
-app.config['SQLALCHEMY_DATABASE_URI'] =\
-    'sqlite:////' + path.join(basedir, 'dbs/tuntunpy.db')
+if opesys is 'Windows':
+    app.config['SQLALCHEMY_DATABASE_URI'] =\
+        'sqlite:///' + path.join(basedir, 'dbs/tuntunpy.db')
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] =\
+        'sqlite:////' + path.join(basedir, 'dbs/tuntunpy.db')
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True  # 每次请求结束后自动提交数据库中的变动
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
-db = SQLAlchemy(app)
+app.config['MAIL_SERVER'] = 'smtp.163.com'
+app.config['MAIL_PORT'] = 25
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['TUNTUNPY_MAIL_SUBJECT_PREFIX'] = '[TuntunPy]'  # 邮件主题的前缀
+app.config['TUNTUNPY_MAIL_SENDER'] = 'Hoster Wang <' + str(app.config['MAIL_USERNAME']) + '>'  # 发件人地址
+app.config['TUNTUNPY_ADMIN'] = os.environ.get('TUNTUNPY_ADMIN')  # 电子邮件收件人
 
 manager = Manager(app)
 bootstrap = Bootstrap(app)
 moment = Moment(app)
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
+manager.add_command('db', MigrateCommand)
+mail = Mail(app)
 
 @app.route('/')
 def index():
@@ -52,6 +76,9 @@ def testpost():
             user = User(username = form.name.data)
             db.session.add(user)
             session['known'] = False
+            if app.config['TUNTUNPY_ADMIN']:
+                send_email(app.config['TUNTUNPY_ADMIN'], user.username,
+                           'mail/new_user', user=user)
         else:
             session['known'] = True
         old_name = session.get('name')
@@ -88,9 +115,28 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     username = db.Column(db.String(64), unique=True, index = True)
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
+    sex = db.Column(db.Integer,  default=1)
 
     def __repr__(self):
         return  '<User %r>' % self.username
+
+def make_shell_context():
+    return dict(app=app, db=db, User=User, Role=Role)
+manager.add_command("shell", Shell(make_context=make_shell_context))
+
+def send_email(to, subject, template, **kwargs):
+    msg = Message(app.config['TUNTUNPY_MAIL_SUBJECT_PREFIX'] + subject,
+                  sender=app.config['TUNTUNPY_MAIL_SENDER'], recipients=[to])
+    msg.body = render_template(template + '.txt', **kwargs)
+    msg.html = render_template(template + '.html', **kwargs)
+    thr = Thread(target=send_async_email, args=[app, msg])
+    thr.start()
+    return thr
+    # mail.send(msg)
+
+def send_async_email(app, msg):
+    with app.app_context():
+        mail.send(msg)
 
 if __name__ == '__main__':
     # app.run(debug=True)
