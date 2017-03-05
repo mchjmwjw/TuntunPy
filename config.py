@@ -24,8 +24,8 @@ class DevelopmentConfig(Config):
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \
-        cursystem is 'Windows' and 'sqlite:///' + path.join(basedir, \
-        'dbs/tuntunpy.db') or 'sqlite:////' + path.join(basedir, 'dbs/tuntunpy.db')
+        cursystem is 'Windows' and 'sqlite:///' + os.path.join(basedir, \
+        'dbs/tuntunpy.db') or 'sqlite:////' + os.path.join(basedir, 'dbs/tuntunpy.db')
 
 class TestingConfig(Config):
     TESTING = True
